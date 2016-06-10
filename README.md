@@ -1,17 +1,45 @@
-# on-call
-Auto detect command to run when doing on call
+# Oncall
 
-# Why
+Automatically runs fix via slack interaction
 
-I recently started doing on-call, and it sucks. I don't have many
-experience with some software components that I have to monitor. Example
-I never used Haddop/Hive personally. So I don't have a good
-understanding of it and failed to really troubleshoot it other than
-blindly restart a broken system.
+Currently we trigger manually. however, we can configure bot to listen
+to message like a pagerduty message
 
-So I write this blindness tool, it will fetch information from
-pagerduty, and compare with a [hjson](hjson.org) file which define what
-to do.
+# How it works
 
-I simply run this tool over it.
+It invoke command via SSH, all are shell script
 
+# How to define a fix
+
+Create a file in `fixer` folder with this structure
+
+```ruby
+module Oncall
+  module Fixer
+    class Name
+      include Oncall::Router
+      include Oncall::Executor
+
+      # Define how do we SSH into jump host
+      ssh do
+        {host: host, username: username_to_ssh; ssh_key: path to key}
+      end
+
+      # Define mapping command
+      route do
+        command 'fix_something' do |client, data, match|
+          say "I'm processing #{match[:some_argument]}"
+          result = run("this command is run over SSH connection above")
+          output.append result
+          # Or we can do some kind of processing
+          post_result = crazy_processing result
+          # Then we can continue to run another command 
+          result = run("another command based on post_result")
+          output.append result
+        end
+      end
+    end
+
+  end
+end
+```
