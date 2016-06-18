@@ -5,13 +5,13 @@ module Oncall
       include Oncall::Router
       include Oncall::Executor
 
-      # Define how to SSH Into server
+      # Define how to SSH Into bastion host, where we run command
       ssh do
         {host: "axcoto.com", username: "kurei"}
       end
 
-      route do
-        command 'mem' do |data, match|
+      route do |bot|
+        bot.command 'mem' do |data, match|
           say "I'm processing #{match[:some_argument]}"
 
           result = run("this command is run over SSH connection above")
@@ -23,7 +23,7 @@ module Oncall
           output.append result
         end
 
-        match /axcoto mem/ do |data, match|
+        bot.match /axcoto mem/ do |data, match|
           say 'I got'
         end
       end
