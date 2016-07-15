@@ -93,26 +93,37 @@ type SlackMessageAction struct {
 	ResponseURL string `json:"response_url"`
 }
 
+type hash map[string]string
 type Storage struct {
-	store map[string]SlackMessageAction
+	store map[string]hash
 }
 
 func (s *Storage) Add(m SlackMessageAction) {
-	s.store[m.CallbackID] = m
-}
-
-func (s *Storage) GetJSON() []byte {
-	out, err := json.Marshal(s.store)
-	if err != nil {
-		return nil
+	if s.store[m.CallbackID] == nil {
+		s.store[m.CallbackID] = make(hash) // store max 200 queue item
 	}
 
+	for _, action := range m.Actions {
+		s.store[m.CallbackID][action.Name] = fmt.Sprintf("%s|%s", m.Channel.ID, action.Value)
+	}
+}
+
+func (s *Storage) GetJSON(provider string) []byte {
+	if s.store[provider] == nil {
+		return []byte{}
+	}
+
+	out, err := json.Marshal(s.store[provider])
+	if err != nil {
+		return []byte{}
+	}
+	s.store[provider] = nil
 	return out
 }
 
 func initStorage() *Storage {
 	s := Storage{
-		store: make(map[string]SlackMessageAction),
+		store: make(map[string]hash),
 	}
 	return &s
 }
@@ -182,7 +193,7 @@ func main() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", Index)
 	router.HandleFunc("/button", SlackButtonHandle)
-	router.HandleFunc("/message", MessageHandle)
+	router.HandleFunc("/message/{provider}", MessageHandle)
 	router.HandleFunc("/incoming", OAuthHandle)
 
 	bind := "127.0.0.1:2830"
@@ -246,7 +257,10 @@ func SlackButtonHandle(w http.ResponseWriter, r *http.Request) {
 }
 
 func MessageHandle(w http.ResponseWriter, r *http.Request) {
-	message := Store.GetJSON()
+	vars := mux.Vars(r)
+	provider := vars["provider"]
+
+	message := Store.GetJSON(provider)
 
 	fmt.Fprintf(w, "%s", message)
 }
