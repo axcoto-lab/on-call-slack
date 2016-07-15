@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"io"
+	//"io"
 	"io/ioutil"
 	"os"
 	"time"
@@ -32,14 +32,65 @@ type SlackTeam struct {
 	Name string `json:"name"`
 }
 
+type SlackMessageResponse struct {
+	Text            string `json:"text"`
+	ResponseType    string `json:"response_type"`
+	ReplaceOriginal bool   `json:"replace_original"`
+	DeleteOriginal  bool   `json:"delete_original"`
+}
+
 type SlackMessageAction struct {
-	actions          []*SlackAction `json:"actions"`
-	callback_id      string         `json:"callback_id"`
-	team             *SlackTeam     `json:"team"`
-	channel          *SlackKV       `json:"channel"`
-	user             *SlackKV       `json:"user"`
-	token            string         `json:"token"`
-	original_message string         `json:"original_message"`
+	Actions []struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	} `json:"actions"`
+	CallbackID string `json:"callback_id"`
+	Team       struct {
+		ID     string `json:"id"`
+		Domain string `json:"domain"`
+	} `json:"team"`
+	Channel struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"channel"`
+	User struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"user"`
+	ActionTs        string `json:"action_ts"`
+	MessageTs       string `json:"message_ts"`
+	AttachmentID    string `json:"attachment_id"`
+	Token           string `json:"token"`
+	OriginalMessage struct {
+		Text        string `json:"text"`
+		Username    string `json:"username"`
+		BotID       string `json:"bot_id"`
+		Attachments []struct {
+			CallbackID string `json:"callback_id"`
+			Fallback   string `json:"fallback"`
+			Text       string `json:"text"`
+			ID         int    `json:"id"`
+			Color      string `json:"color"`
+			Actions    []struct {
+				ID      string `json:"id"`
+				Name    string `json:"name"`
+				Text    string `json:"text"`
+				Type    string `json:"type"`
+				Value   string `json:"value"`
+				Style   string `json:"style"`
+				Confirm struct {
+					Text        string `json:"text"`
+					Title       string `json:"title"`
+					OkText      string `json:"ok_text"`
+					DismissText string `json:"dismiss_text"`
+				} `json:"confirm,omitempty"`
+			} `json:"actions"`
+		} `json:"attachments"`
+		Type    string `json:"type"`
+		Subtype string `json:"subtype"`
+		Ts      string `json:"ts"`
+	} `json:"original_message"`
+	ResponseURL string `json:"response_url"`
 }
 
 type Storage struct {
@@ -47,7 +98,7 @@ type Storage struct {
 }
 
 func (s *Storage) Add(m SlackMessageAction) {
-	s.store[m.callback_id] = m
+	s.store[m.CallbackID] = m
 }
 
 func (s *Storage) GetJSON() []byte {
@@ -159,15 +210,16 @@ func OAuthHandle(w http.ResponseWriter, r *http.Request) {
 func SlackButtonHandle(w http.ResponseWriter, r *http.Request) {
 	var message SlackMessageAction
 
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
-	log.Println(string(body))
+	payload := r.FormValue("payload")
+	//body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
+	log.Println(string(payload))
 
+	err := json.Unmarshal([]byte(payload), &message)
 	if err != nil {
 		fmt.Fprintf(w, "Cannot read body JSON %v", err)
 		return
 	}
 
-	err = json.Unmarshal(body, &message)
 	log.Println(message)
 
 	if err != nil {
@@ -176,8 +228,21 @@ func SlackButtonHandle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	Store.Add(message)
+	/*
+		j := SlackMessageResponse{
+			Text:            "Queued action. Will process",
+			ResponseType:    "in_channel",
+			ReplaceOriginal: false,
+			DeleteOriginal:  false,
+		}
+		response, err := json.Marshal(&j)
+		if err != nil {
+			fmt.Fprintln(w, "error")
+			return
+		}
+	*/
 
-	fmt.Fprintln(w, "OK")
+	fmt.Fprintf(w, "Action is queued for process")
 }
 
 func MessageHandle(w http.ResponseWriter, r *http.Request) {
