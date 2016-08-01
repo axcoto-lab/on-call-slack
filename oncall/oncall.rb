@@ -1,10 +1,21 @@
+require_relative '../lib/wit'
+
 module Oncall
   class Bot < SlackRubyBot::Bot
+    include Oncall::Wit
+
     # Get an instance of slack to use through out of the app
     def self.slack
       @@slack ||= Slack::Web::Client.new
       @@slack
     end
+
+    match /^.*vinhbot\s+(.*)/ do |client, data, match|
+      puts "Will parse #{match[1]}"
+      message = wit.parse match[1]
+      puts message.to_a.to_s
+    end
+
   end
 
 
