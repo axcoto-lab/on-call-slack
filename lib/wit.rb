@@ -3,11 +3,12 @@ require 'json'
 
 module Oncall
   module Wit
-    #included(self) do
+
+    #def self.included(base)
     #  puts "Create wit client"
     #end
 
-    def self.wit
+    def wit
       @wit ||= Client.new ENV["WIT_ACCESS_TOKEN"]
     end
 
@@ -17,6 +18,7 @@ module Oncall
 
       def initialize(token)
         @token = token
+        self.class.headers 'Authorization' => "Bearer #{@token}"
       end
 
       def parse(message)
@@ -27,12 +29,14 @@ module Oncall
 
       private
       def request(q)
-        q = { query: {
+        q = { 
+          query: {
               v: '20160731',
-              q: URI.escape(q)
-            }}
+              q: q
+          },
+        }
 
-        self.class.get("/message", q)
+        response = self.class.get("/message", q)
         response.body
       end
 
@@ -44,6 +48,7 @@ module Oncall
     class Response
       def initialize(body)
         @body = body
+        puts @body
         @response = JSON.parse(body)
       end
 
@@ -52,7 +57,15 @@ module Oncall
       end
 
       def [](y)
-        @response["entities"][y]
+        @response["entities"][y].first["value"] unless @response["entities"][y].nil?
+      end
+
+      def to_a
+        @response["entities"]
+      end
+
+      def to_s
+        @response.to_s
       end
     end
 

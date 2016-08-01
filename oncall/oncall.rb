@@ -2,7 +2,7 @@ require_relative '../lib/wit'
 
 module Oncall
   class Bot < SlackRubyBot::Bot
-    include Oncall::Wit
+    extend Oncall::Wit
 
     # Get an instance of slack to use through out of the app
     def self.slack
@@ -11,9 +11,18 @@ module Oncall
     end
 
     match /^.*vinhbot\s+(.*)/ do |client, data, match|
-      puts "Will parse #{match[1]}"
       message = wit.parse match[1]
-      puts message.to_a.to_s
+
+      if message["aws_resource"]
+        case message["aws_attribute"]
+          when "ip"
+            puts "Will find #{message["aws_attribute"]} of#{message["aws_resource"]}"
+            default = `aws ec2 describe-instances --filters Name=tag-key,Values="*#{message["aws_resource"]}*" --query 'Reservations[].Instances[*].[NetworkInterfaces[].PrivateIpAddresses[].PrivateIpAddress, Tags[1].Value]' --profile cc --output text`
+            eu = `aws --region eu-central-1 ec2 describe-instances --filters Name=tag-key,Values="*#{message["aws_resource"]}*" --query 'Reservations[].Instances[*].[NetworkInterfaces[].PrivateIpAddresses[].PrivateIpAddress, Tags[1].Value]' --profile cc --output text`
+            slack.chat_postMessage(text: "```" + [default, eu].join("\n") + "```", channel: data.channel)
+        end
+      end
+
     end
 
   end
