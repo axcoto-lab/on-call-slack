@@ -215,7 +215,11 @@ func OAuthHandle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintln(w, "OK")
+	response := slackClient.request("/oauth.access", map[string]string{
+		"code": code,
+	})
+
+	fmt.Fprintln(w, string(response))
 }
 
 func SlackButtonHandle(w http.ResponseWriter, r *http.Request) {
