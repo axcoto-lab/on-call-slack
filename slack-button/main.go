@@ -145,7 +145,12 @@ func (s *SlackClient) request(path string, data SlackRequestData) []byte {
 		form.Add(k, v)
 	}
 
+	form.Add("client_id", s.Id)
+	form.Add("client_secret", s.Secret)
+
 	req, err := http.NewRequest("POST", apiUrl, bytes.NewBuffer([]byte(form.Encode())))
+	req.Header["Content-Type"] = []string{" application/x-www-form-urlencoded"}
+
 	if err != nil {
 		return nil
 	}
@@ -214,6 +219,8 @@ func OAuthHandle(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Invalid code")
 		return
 	}
+
+	fmt.Fprintln(w, "Get code"+code)
 
 	response := slackClient.request("/oauth.access", map[string]string{
 		"code": code,
